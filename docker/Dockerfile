@@ -1,33 +1,21 @@
-#FROM php:7.3-apache
-FROM php:8.0.7-apache
+FROM php:8.3-apache
 
 LABEL author="GenOuest <support@genouest.org>" \
       description="Image for platform manager processes" \
       org.irisa.genouest.vendor="2021 IRISA" \
       homepage="https://github.com/bgo-bioimagerie/platformmanager"
 
-# ENV TINI_VERSION v0.9.0
-# RUN set -x \
-#     && curl -fSL "https://github.com/krallin/tini/releases/download/$TINI_VERSION/tini" -o /usr/local/bin/tini \
-#     && curl -fSL "https://github.com/krallin/tini/releases/download/$TINI_VERSION/tini.asc" -o /usr/local/bin/tini.asc \
-#     && export GNUPGHOME="$(mktemp -d)" \
-#     && gpg --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 6380DC428747F6C393FEACA59A84159D7001A4E5 \
-#     || gpg --keyserver pgp.mit.edu --recv-keys 6380DC428747F6C393FEACA59A84159D7001A4E5 \
-#     && gpg --batch --verify /usr/local/bin/tini.asc /usr/local/bin/tini \
-#     && rm -r "$GNUPGHOME" /usr/local/bin/tini.asc \
-#     && chmod +x /usr/local/bin/tini
-
-# ENTRYPOINT ["/usr/local/bin/tini", "--"]
 
 WORKDIR /var/www
 
 VOLUME ["/var/www/platformmanager/data"]
 
 # Install packages and PHP-extensions
+# Note: PHP 8.0+ bundles c-client internally; libc-client2007e (removed in Debian Bookworm) is no longer needed
 RUN apt-get -q update && \
     DEBIAN_FRONTEND=noninteractive apt-get -yq --no-install-recommends install wget nano vim at git unzip \
-    libfreetype6 libjpeg62 libpng16-16 libx11-6 libxpm4 zlib1g-dev libzip4 libldap2-dev libc-client2007e libkrb5-3 && \
-    BUILD_DEPS="libfreetype6-dev libjpeg62-turbo-dev libmcrypt-dev libpng-dev libxpm-dev zlib1g-dev libzip-dev libc-client2007e-dev libkrb5-dev" && \
+    libfreetype6 libjpeg62 libpng16-16 libx11-6 libxpm4 libzip4 libldap2-dev libkrb5-3 libssl3 && \
+    BUILD_DEPS="libfreetype6-dev libjpeg62-turbo-dev libpng-dev libxpm-dev zlib1g-dev libzip-dev libkrb5-dev libssl-dev" && \
     DEBIAN_FRONTEND=noninteractive apt-get -yq --no-install-recommends install $BUILD_DEPS && \
     pecl install redis && docker-php-ext-enable redis && \
     docker-php-ext-configure imap --with-imap-ssl --with-kerberos && \
@@ -97,7 +85,7 @@ RUN chmod a+x /entrypoint.sh
 RUN chmod a+x /pfmextra-entrypoint.sh
 RUN chmod a+x /setup.sh
 
-ADD https://github.com/ufoscout/docker-compose-wait/releases/download/2.6.0/wait /wait
+ADD https://github.com/ufoscout/docker-compose-wait/releases/download/2.12.1/wait /wait
 RUN chmod +x /wait
 
 RUN cp /usr/local/etc/php/php.ini-production /usr/local/etc/php/php.ini

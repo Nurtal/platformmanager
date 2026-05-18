@@ -20,6 +20,7 @@ require_once 'Framework/Email.php';
 require_once 'Modules/core/Model/CoreTranslator.php';
 
 use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
 
 /**
  *
@@ -33,7 +34,7 @@ class CoreaccountController extends Controller
         $lang = $this->getLanguage();
         $token = $this->request->getParameter("token");
         try {
-            $decoded = JWT::decode($token, Configuration::get('jwt_secret'), array('HS256'));
+            $decoded = JWT::decode($token, new Key(Configuration::get('jwt_secret'), 'HS256'));
         } catch(Throwable $e) {
             Configuration::getLogger()->debug('[core][account][confirm] jwt decode failed', ['error' => $e->getMessage()]);
             return new PfmAuthException($e->getMessage(), 403);
@@ -203,7 +204,7 @@ class CoreaccountController extends Controller
              * https://tools.ietf.org/html/draft-ietf-jose-json-web-algorithms-40
              * for a list of spec-compliant algorithms.
              */
-            $jwt = JWT::encode($payload, Configuration::get('jwt_secret'));
+            $jwt = JWT::encode($payload, Configuration::get('jwt_secret'), 'HS256');
             $email = new Email();
             $mailParams = [
                 "jwt" => $jwt,

@@ -226,7 +226,7 @@ class HelpdeskController extends CoresecureController
                 'allow_unsafe_links' => false,
             ]);
 
-            $content = $converter->convertToHtml($params['body']);
+            $content = (string) $converter->convert($params['body']);
             Configuration::getLogger()->debug('send email', ['body' => $content, 'files' => $attachementFiles]);
 
 

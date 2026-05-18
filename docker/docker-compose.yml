@@ -1,4 +1,3 @@
-version: "3"
 services:
   pfm-helpdesk:
     image: quay.io/genouest/pfm
@@ -140,7 +139,7 @@ services:
       - "3000:80"
 
   pfm-rabbitmq:
-    image: rabbitmq:3.8
+    image: rabbitmq:3.13
     hostname: pfm-rabbitmq
     environment:
         - RABBITMQ_DEFAULT_USER=pfm
@@ -149,7 +148,7 @@ services:
       - rabbitmq-pfm.conf:/etc/rabbitmq/conf.d/pfm.conf
 
   influxdb:
-    image: influxdb:2.0
+    image: influxdb:2.7
     environment:
       DOCKER_INFLUXDB_INIT_MODE: setup
       DOCKER_INFLUXDB_INIT_USERNAME: pfmadmin
@@ -162,7 +161,7 @@ services:
       - influxdb-cfg:/etc/influxdb2
 
   mysql:
-    image: mysql:8
+    image: mysql:8.4
     environment:
         MYSQL_DATABASE: platform_manager
         MYSQL_USER: platform_manager
@@ -173,13 +172,13 @@ services:
     command: --sql-mode=""
 
   redis:
-    image: redis:6.2.6
+    image: redis:7.4
     volumes:
       - redis:/data
     command: ["--save", "60", "1", "--loglevel", "warning"]
 
   grafana:
-    image: grafana/grafana
+    image: grafana/grafana:11.4.0
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=${PFM_ADMIN_PASSWORD}

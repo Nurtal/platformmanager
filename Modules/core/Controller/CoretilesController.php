@@ -123,7 +123,7 @@ class CoretilesController extends CorecookiesecureController
                             'html_input' => 'strip',
                             'allow_unsafe_links' => false,
                         ]);
-                        $content = $converter->convertToHtml($content);
+                        $content = (string) $converter->convert($content);
                     }
                     break;
                 }

@@ -2,7 +2,6 @@
 
 use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
-use Monolog\Processor\TagProcessor;
 use Monolog\Formatter\LineFormatter;
 use Symfony\Component\Yaml\Yaml;
 
@@ -34,16 +33,17 @@ class Configuration
             $streamHandler = new StreamHandler('php://stderr', $level);
             $streamHandler->setFormatter($formatter);
             self::$logger->pushHandler($streamHandler);
-            self::$logger->pushProcessor(function ($entry) {
+            self::$logger->pushProcessor(function (\Monolog\LogRecord $record) {
                 $user = 'anonymous';
                 if (isset($_SESSION['id_user'])) {
                     $user = $_SESSION['id_user'];
                 }
-                $entry['extra']['user'] = $user;
+                $extra = $record->extra;
+                $extra['user'] = $user;
                 if (isset($_SESSION['id_space'])) {
-                    $entry['extra']['space'] = $_SESSION['id_space'];
+                    $extra['space'] = $_SESSION['id_space'];
                 }
-                return $entry;
+                return $record->with(extra: $extra);
             });
         }
         return self::$logger;
