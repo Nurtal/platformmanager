@@ -186,6 +186,34 @@ case "$GRAFANA_CODE" in
     *)   fail 'the proxied metrics dashboard answers' "got HTTP $GRAFANA_CODE" ;;
 esac
 
+# --- Runtime --------------------------------------------------------------
+
+section 'Runtime'
+
+# compressed_encoding <path> -> Content-Encoding when the client accepts gzip
+compressed_encoding() {
+    curl -sS -D - -o /dev/null -H 'Accept-Encoding: gzip, deflate' "${BASE_URL}$1" 2>/dev/null \
+        | sed 's/\r$//' | grep -i '^content-encoding:' | tail -1 | cut -d: -f2- | sed 's/^ *//'
+}
+
+for path in /coreconnection /externals/node_modules/bootstrap/dist/css/bootstrap.min.css; do
+    encoding="$(compressed_encoding "$path")"
+    if [ -n "$encoding" ]; then
+        pass "$path is served compressed ($encoding)"
+    else
+        fail "$path is served compressed" 'no Content-Encoding although the client accepts gzip'
+    fi
+done
+
+# The backtrace that used to run at the end of every request printed internal
+# paths into the response body.
+BODY="$(curl -sS -L --max-redirs 3 "${BASE_URL}/coreconnection" 2>/dev/null)"
+if printf '%s' "$BODY" | grep -qE '#[0-9]+ +/var/www|debug_print_backtrace'; then
+    fail 'no response carries a backtrace' 'internal paths are being printed into the page'
+else
+    pass 'no response carries a backtrace'
+fi
+
 # --- Result ---------------------------------------------------------------
 
 printf '\n'

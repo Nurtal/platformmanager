@@ -26,6 +26,8 @@ RUN apt-get -q update && \
     docker-php-ext-install gd pdo pdo_mysql mysqli zip ldap sockets && \
     a2enmod rewrite && \
     a2enmod headers && \
+    a2enmod deflate && \
+    a2enmod filter && \
     a2enmod proxy_http && \
     rm -rf /var/lib/apt/lists/* && \
     touch /var/log/php_errors.log && \
@@ -56,6 +58,7 @@ RUN curl -o /tmp/composer-setup.php https://getcomposer.org/installer \
 ADD php_logs.ini /usr/local/etc/php/conf.d/php_logs.ini
 ADD php_timezone.ini /usr/local/etc/php/conf.d/tz.ini
 ADD php_pfm.ini /usr/local/etc/php/conf.d/pfm.ini
+ADD php_opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 ADD apache2/platformmanager.conf /etc/apache2/conf-enabled/platformmanager.conf
 ADD apache2/000-default.conf /etc/apache2/sites-enabled/000-default.conf
 

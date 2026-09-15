@@ -23,4 +23,3 @@ if(Configuration::get('sentry_dsn', '')) {
 
 $router = new Router();
 $router->routerRequest();
-debug_print_backtrace();
