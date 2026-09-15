@@ -555,14 +555,26 @@ class CoreUser extends Model
             throw new PfmAuthException($this::$CNX_INVALID_LOGIN);
         }
         $user = $res->fetch();
-        $hash = $user['hash'];
+        $hash = intval($user['hash']);
         $pwdDb = $user['pwd'];
         if (!$this->comparePasswords($pwd, $pwdDb, $hash)) {
-            Configuration::getLogger()->debug('[core][connect] invalid password', ['user' => $user]);
+            // never log the user row here: it carries the password hash
+            Configuration::getLogger()->debug('[core][connect] invalid password', ['login' => $login]);
             throw new PfmAuthException($this::$CNX_WRONG_PWD);
         }
+        if ($hash === self::$HASH_MD5) {
+            // The password is proven, so the account can leave MD5 behind without
+            // anyone being asked to reset anything. The debt extinguishes itself
+            // as Users sign in.
+            $this->changePwd($user['id'], $pwd);
+            Configuration::getLogger()->info('[core][connect] upgraded password hash to bcrypt', ['login' => $login]);
+        }
         if ($user["is_active"] != 1 || $user["validated"] != 1) {
-            Configuration::getLogger()->debug('[core][connect] inactive user', ['user' => $user]);
+            Configuration::getLogger()->debug('[core][connect] inactive user', [
+                'login' => $login,
+                'is_active' => $user['is_active'],
+                'validated' => $user['validated']
+            ]);
             throw new PfmAuthException($this::$CNX_INACTIVE);
         } else {
             return true;
