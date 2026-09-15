@@ -21,6 +21,13 @@ abstract class CorecookiesecureController extends Controller
     {
         // open the session
         session_unset();
+        // Renew the identifier now that the User is authenticated, so one planted
+        // in their browser beforehand cannot be reused against their account. This
+        // is the single point where a successful authentication populates the
+        // session, so the password, remember me and API key paths are all covered.
+        if (session_status() === PHP_SESSION_ACTIVE && !headers_sent()) {
+            session_regenerate_id(true);
+        }
         $modelUser = new CoreUser();
         $sessuser = $modelUser->getUserByLogin($login);
 

@@ -116,6 +116,46 @@ for path in /.git/config /.git/HEAD /.git/logs/HEAD; do
     esac
 done
 
+# --- Session cookie -------------------------------------------------------
+
+section 'Session cookie'
+SET_COOKIE="$(printf '%s\n' "$APP_HEADERS" | grep -i '^set-cookie:.*PHPSESSID' | tail -1)"
+if [ -z "$SET_COOKIE" ]; then
+    fail 'the application sets a session cookie' 'no PHPSESSID in the response'
+else
+    if printf '%s' "$SET_COOKIE" | grep -qi 'HttpOnly'; then
+        pass 'the session cookie is not readable by page scripts (HttpOnly)'
+    else
+        fail 'the session cookie is not readable by page scripts (HttpOnly)' "got: $SET_COOKIE"
+    fi
+
+    if printf '%s' "$SET_COOKIE" | grep -qi 'SameSite=Lax'; then
+        pass 'the session cookie is restricted on cross-site navigations (SameSite=Lax)'
+    else
+        fail 'the session cookie is restricted on cross-site navigations (SameSite=Lax)' "got: $SET_COOKIE"
+    fi
+
+    # Secure is deliberately conditional: the supplied container stack serves
+    # plain HTTP and must keep working on a laptop.
+    case "$BASE_URL" in
+        https://*)
+            if printf '%s' "$SET_COOKIE" | grep -qi 'Secure'; then
+                pass 'over HTTPS the session cookie is transport-restricted (Secure)'
+            else
+                fail 'over HTTPS the session cookie is transport-restricted (Secure)' "got: $SET_COOKIE"
+            fi
+            ;;
+        *)
+            if printf '%s' "$SET_COOKIE" | grep -qi 'Secure'; then
+                fail 'over plain HTTP the session cookie is not marked Secure' \
+                     'the browser would drop it, making the stack unusable'
+            else
+                pass 'over plain HTTP the session cookie is not marked Secure'
+            fi
+            ;;
+    esac
+fi
+
 # --- Features that must keep working --------------------------------------
 
 section 'Features that must keep working'

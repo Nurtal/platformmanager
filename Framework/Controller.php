@@ -261,7 +261,9 @@ abstract class Controller
      */
     public function getLanguage()
     {
-        $lang = substr(filter_input(INPUT_SERVER, 'HTTP_ACCEPT_LANGUAGE'), 0, 2);
+        // filter_input returns null when the header is absent, and passing null to
+        // substr() is deprecated since 8.1 and an error in 9
+        $lang = substr(filter_input(INPUT_SERVER, 'HTTP_ACCEPT_LANGUAGE') ?? '', 0, 2);
         if (isset($_SESSION["user_settings"]["language"])) {
             $lang = $_SESSION["user_settings"]["language"];
         }
@@ -464,7 +466,20 @@ abstract class Controller
             $path .= implode('&', $pathElements);
         }
         if (!headers_sent($filename, $filenum)) {
+            // header_remove() drops every header, Set-Cookie included. That would
+            // throw away the session identifier renewed at sign-in, leaving the
+            // browser holding an identifier the server no longer knows, so the
+            // cookies are put back afterwards.
+            $cookies = [];
+            foreach (headers_list() as $header) {
+                if (stripos($header, 'Set-Cookie:') === 0) {
+                    $cookies[] = $header;
+                }
+            }
             header_remove();
+            foreach ($cookies as $cookie) {
+                header($cookie, false);
+            }
         } else {
             Configuration::getLogger()->debug('headers already sent', ['file' => $filename, 'line' => $filenum]);
         }

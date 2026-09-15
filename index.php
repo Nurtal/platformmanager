@@ -9,6 +9,11 @@ error_reporting(0);
 $sessionPath = dirname(__FILE__).'/tmp/';
 session_save_path( $sessionPath );
 
+// Cookie attributes must be set before anything starts a session. Session does
+// this for itself too, so command line entry points get the same treatment.
+require_once 'Framework/Session.php';
+Session::configureCookie();
+
 require 'Framework/Router.php';
 
 if(Configuration::get('sentry_dsn', '')) {
