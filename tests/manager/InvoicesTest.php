@@ -104,7 +104,7 @@ class InvoicesTest extends InvoicesBaseTest {
         $bkEntryModel = new BkCalendarEntry();
         $resourcesModel = new ResourceInfo();
         $clientUserModel = new ClClientUser();
-        $bkBaseTestModel = new BookingBaseTest();
+        $bkBaseTestModel = new BookingBaseTest('setReservationWithInvoicingUnits');
 
         $ctx = $this->Context();
         $spaces = $ctx['spaces'];

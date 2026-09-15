@@ -23,7 +23,7 @@ require_once 'Modules/core/Model/CorePendingAccount.php';
 require_once 'tests/BaseTest.php';
 
 
-class CoreTest extends BaseTest {
+class CoreAdminTest extends BaseTest {
 
     public function testInstallAndCoreAccess()
     {
