@@ -85,6 +85,22 @@ elsewhere — is enough to sign in as any User who ticked the box, with no passw
 invalidation on sign-out. Covered by tests through the model and verified end to end against a
 running instance, including that a consumed token is refused on replay.
 
+### 1.5b The "remember me" cookie carried no protections — **high, found in review**
+
+**What.** 1.2 hardened the session cookie, but the remember-me cookie itself was still set with
+none of `HttpOnly`, `SameSite` or `Secure`, and with no explicit path, so it took whatever
+directory the request URL happened to have.
+
+**Impact.** The longer-lived of the two credentials was the less protected one: readable by any
+page script for three days, sent on cross-site navigations, and transmitted in the clear over
+plain HTTP. The unset path also meant a rotation performed on a nested URL could scope the new
+cookie to a subtree, or leave several cookies of the same name behind.
+
+**Fixed.** Both the issue and the clearing of that cookie now go through one place, which applies
+the same attributes as the session cookie and pins the path to the installation root. Verified
+against a running instance: the cookie is set, rotated and cleared with matching attributes, and
+the whole remember-me journey still works.
+
 ### 1.6 MD5 password hashes accepted, never migrated — **high**
 
 **What.** Accounts created before bcrypt still authenticated against an MD5 hash and nothing ever
@@ -142,6 +158,12 @@ about the application. A suite that reports success while running nothing is wor
 
 **Fixed.** Constraints corrected and the lock file committed; the suite runs 76 tests with no
 failures and no deprecations, up from 0 tests executed.
+
+**Worth stating separately: no test covered authentication at all before this pass** — not the
+model's authentication method, not password comparison, not remember-me. Every change in 1.5,
+1.5b, 1.6 and 1.7 was made to code that nothing verified. The tests added by those items are the
+first coverage those paths have ever had, and they are the reason the next change to them will not
+be a leap of faith.
 
 ### 1.11 The container image could not be built — **blocking**
 
@@ -355,6 +377,13 @@ Run `bin/check-deployment.sh <url>` against the deployed instance afterwards. It
 headers, the policy, the refusal to serve the repository, the cookie attributes, compression, and
 that the About screen still reports a version. It is a pre-deployment check, not a continuous
 integration step, because continuous integration does not stand the full stack up.
+
+One thing it cannot assert, because nothing about it is visible over HTTP, is the bytecode cache.
+Check that one against the container directly:
+
+    docker exec <container> php -r 'var_dump(ini_get("opcache.enable"), ini_get("opcache.validate_timestamps"));'
+
+Both must be "1". The second is what keeps development mode and mounted source trees working.
 
 ---
 

@@ -34,7 +34,7 @@ abstract class CoresecureController extends CorecookiesecureController
                 $auth = $_COOKIE['auth'];
                 $authArray = explode('-', $auth, 2);
                 if (count($authArray) != 2) {
-                    return $this->forgetRememberMeCookie();
+                    return $this->rejectRememberMeCookie();
                 }
                 $modelUser = new CoreUser();
                 if (!$modelUser->isUserId($authArray[0])) {
@@ -45,8 +45,7 @@ abstract class CoresecureController extends CorecookiesecureController
                 if ($modelUser->verifyRememberToken($authArray[0], $authArray[1])) {
                     // rotate the token, so a cookie is only ever good once
                     $token = $modelUser->issueRememberToken($authArray[0]);
-                    $cookieSet = setcookie("auth", $authArray[0] . "-" . $token, time() + 3600 * 24 * 3);
-                    if (!$cookieSet) {
+                    if (!$this->setRememberMeCookie($authArray[0], $token)) {
                         throw new PfmAuthException('cannot set the cookie in coresecure', 403);
                     }
 
@@ -58,7 +57,7 @@ abstract class CoresecureController extends CorecookiesecureController
                     // a token that does not verify leaves no half-authenticated session
                     // behind; the stored one is left alone, so guessing cookies cannot
                     // sign other people out
-                    return $this->forgetRememberMeCookie();
+                    return $this->rejectRememberMeCookie();
                 }
             } else {
                 return 0;
@@ -68,12 +67,15 @@ abstract class CoresecureController extends CorecookiesecureController
     }
 
     /**
-     * Drop the remember me cookie the browser sent and send the visitor to the
-     * login screen with nothing of the attempt left in the session.
+     * Refuse a remember me cookie: drop it, and send the visitor to the login
+     * screen with nothing of the attempt left in the session.
+     *
+     * @return int the "no remember me session" status checkRememberMeCookie()
+     *             returns to runAction(), which then continues as anonymous
      */
-    private function forgetRememberMeCookie(): int
+    private function rejectRememberMeCookie(): int
     {
-        setcookie('auth', '', time() - 3600);
+        $this->clearRememberMeCookie();
         $this->redirectNoRemoveHeader("coreconnection");
         return 0;
     }

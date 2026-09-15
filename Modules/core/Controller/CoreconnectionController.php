@@ -113,8 +113,7 @@ class CoreconnectionController extends CorecookiesecureController
             if ($this->request->isParameter("remember")) {
                 $modelUser = new CoreUser();
                 $token = $modelUser->issueRememberToken($loggedUser['id']);
-                $cookieSet = setcookie("auth", $loggedUser['id'] . "-" . $token, time() + 3600 * 24 * 3);
-                if (!$cookieSet) {
+                if (!$this->setRememberMeCookie($loggedUser['id'], $token)) {
                     // never put the token in the message: it travels to the logs and to Sentry
                     throw new PfmException("failed to set the remember me cookie", 500);
                 }
@@ -179,7 +178,7 @@ class CoreconnectionController extends CorecookiesecureController
             $modelUser = new CoreUser();
             $modelUser->clearRememberToken($id_user);
         }
-        setcookie('auth', '', -1);
+        $this->clearRememberMeCookie();
 
         $this->request->getSession()->destroy();
         $this->redirectNoRemoveHeader("coretiles");

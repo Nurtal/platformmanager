@@ -9,8 +9,10 @@ error_reporting(0);
 $sessionPath = dirname(__FILE__).'/tmp/';
 session_save_path( $sessionPath );
 
-// Cookie attributes must be set before anything starts a session. Session does
-// this for itself too, so command line entry points get the same treatment.
+// Cookie attributes must be set before anything starts a session, and after
+// session_save_path above. Session does this for itself as well, which is what
+// covers the command line entry points; here it makes the ordering explicit for
+// the web entry point.
 require_once 'Framework/Session.php';
 Session::configureCookie();
 

@@ -104,6 +104,8 @@ class InvoicesTest extends InvoicesBaseTest {
         $bkEntryModel = new BkCalendarEntry();
         $resourcesModel = new ResourceInfo();
         $clientUserModel = new ClClientUser();
+        // used as a booking fixture helper, not run as a test: PHPUnit requires a
+        // TestCase to be named after one of its own methods
         $bkBaseTestModel = new BookingBaseTest('setReservationWithInvoicingUnits');
 
         $ctx = $this->Context();
