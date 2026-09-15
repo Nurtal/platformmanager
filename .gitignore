@@ -5,3 +5,4 @@ Config/conf.ini
 Config/conf.yaml
 .vscode
 .phpunit.result.cache
+tmp

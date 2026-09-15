@@ -12,17 +12,18 @@ VOLUME ["/var/www/platformmanager/data"]
 
 # Install packages and PHP-extensions
 # Note: PHP 8.0+ bundles c-client internally; libc-client2007e (removed in Debian Bookworm) is no longer needed
+# Note: the base image is Debian Trixie, which renamed libjpeg62 -> libjpeg62-turbo,
+#       libpng16-16 -> libpng16-16t64 and libzip4 -> libzip5. The old names abort the build.
 RUN apt-get -q update && \
     DEBIAN_FRONTEND=noninteractive apt-get -yq --no-install-recommends install wget nano vim at git unzip \
-    libfreetype6 libjpeg62 libpng16-16 libx11-6 libxpm4 libzip4 libldap2-dev libkrb5-3 libssl3 && \
+    libfreetype6 libjpeg62-turbo libpng16-16t64 libx11-6 libxpm4 libzip5 libldap2-dev libkrb5-3 libssl3 && \
     BUILD_DEPS="libfreetype6-dev libjpeg62-turbo-dev libpng-dev libxpm-dev zlib1g-dev libzip-dev libkrb5-dev libssl-dev" && \
     DEBIAN_FRONTEND=noninteractive apt-get -yq --no-install-recommends install $BUILD_DEPS && \
     pecl install redis && docker-php-ext-enable redis && \
-    docker-php-ext-configure imap --with-imap-ssl --with-kerberos && \
     docker-php-ext-configure gd \
     --with-jpeg \
     --with-xpm --with-freetype && \
-    docker-php-ext-install gd pdo pdo_mysql mysqli zip ldap imap sockets && \
+    docker-php-ext-install gd pdo pdo_mysql mysqli zip ldap sockets && \
     a2enmod rewrite && \
     a2enmod headers && \
     a2enmod proxy_http && \
@@ -30,6 +31,20 @@ RUN apt-get -q update && \
     touch /var/log/php_errors.log && \
     chown www-data /var/log/php_errors.log && \
     apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false -o APT::AutoRemove::SuggestsImportant=false $BUILD_DEPS && \
+    rm -rf /var/lib/apt/lists/*
+
+# ext/imap is built only when the base image can still provide uw-imap (c-client).
+# Debian dropped it after bullseye and PHP moved ext/imap out of core in 8.4, so on a
+# current base it simply cannot be built. Only bin/pfm-helpdesk.php, the mail poller
+# behind the helpdesk service, calls imap_*: nothing in the web application does. The
+# image is therefore built without it rather than not built at all. Moving the poller
+# onto a maintained IMAP client library is its own piece of work; see the audit report.
+RUN if apt-get -q update \
+      && DEBIAN_FRONTEND=noninteractive apt-get -yq --no-install-recommends install libc-client-dev libkrb5-dev libssl-dev; then \
+      docker-php-ext-configure imap --with-imap-ssl --with-kerberos && docker-php-ext-install imap; \
+    else \
+      echo "WARNING: ext-imap not built, no c-client on this base image: the helpdesk mail poller will not run"; \
+    fi; \
     rm -rf /var/lib/apt/lists/*
 
 RUN curl -o /tmp/composer-setup.php https://getcomposer.org/installer \
