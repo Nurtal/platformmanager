@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   testing:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     services:
       redis:
         image: redis
@@ -24,27 +24,43 @@ jobs:
           MYSQL_PASSWORD: platform_manager
           MYSQL_DATABASE: platform_manager
           MYSQL_ROOT_PASSWORD: platform_manager
-        #options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=5
         options: --health-cmd="/usr/local/bin/healthcheck.sh --connect" --health-interval=10s --health-timeout=5s --health-retries=5
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: true  # Fetch Hugo themes (true OR recursive)
-          fetch-depth: 0    # Fetch all history for .GitInfo and .Lastmod
+          fetch-depth: 0    # Fetch all history: the About screen reports git describe --tags
 
       - name: Setup PHP
         id: setup-php
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.0'
+          # the version the container image ships, so a green build means something.
+          # Extensions match what the image provides; ext-imap is not among them, see
+          # docker/Dockerfile.
+          php-version: '8.3'
           tools: phpunit
-          extensions: redis, gd, pdo, pdo_mysql, mysqli, zip, ldap, imap, sockets
+          extensions: redis, gd, pdo, pdo_mysql, mysqli, zip, ldap, sockets
 
       - name: tests
         env:
           MYSQLCONFIG: mysql:host=127.0.0.1;port=${{ job.services.mariadb.ports[3306] }};dbname=platform_manager;charset=utf8
         run: |
-          composer install --ignore-platform-reqs
+          composer install --no-progress
           ./tests/wait-for-it.sh localhost:${{ job.services.mariadb.ports[3306] }}
           MYSQL_DSN=$MYSQLCONFIG DEBUG=1 PFM_CONFIG=Config/conf_test.ini PFM_MODE=test ./vendor/phpunit/phpunit/phpunit --stderr
+
+      # The audits report, they do not gate. The front-end tree carries known
+      # advisories in packages that are deliberately frozen, and a blocking audit
+      # would stop every pull request from day one.
+      - name: PHP dependency advisories
+        if: always()
+        continue-on-error: true
+        run: composer audit --locked --format=plain
+
+      - name: Front-end dependency advisories
+        if: always()
+        continue-on-error: true
+        working-directory: externals
+        run: npm audit --audit-level=low
