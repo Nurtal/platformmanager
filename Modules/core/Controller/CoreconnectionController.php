@@ -5,6 +5,7 @@ require_once 'Framework/Configuration.php';
 require_once 'Framework/Form.php';
 require_once 'Framework/Email.php';
 require_once 'Framework/Errors.php';
+require_once 'Framework/Utils.php';
 
 require_once 'Modules/core/Controller/CorecookiesecureController.php';
 require_once 'Modules/core/Model/CoreUser.php';
@@ -70,8 +71,10 @@ class CoreconnectionController extends CorecookiesecureController
         }
         $_SESSION["redirect"] = "coretiles";
 
-        if (isset($_GET['redirect_url'])) {
-            $redirection = urldecode($_GET['redirect_url']);
+        // PHP already decoded the query string: decoding a second time here is what let a
+        // double-encoded payload through. Keep only an internal destination; the view escapes it.
+        if ($this->request->isParameter('redirect_url')) {
+            $redirection = Utils::safeRedirectPath($this->request->getParameter('redirect_url', false));
         }
 
 
@@ -97,7 +100,7 @@ class CoreconnectionController extends CorecookiesecureController
 
             $redirection = '';
             if ($this->request->isParameter('redirection')) {
-                $redirection = $this->request->getParameter('redirection');
+                $redirection = Utils::safeRedirectPath($this->request->getParameter('redirection', false));
             }
             try {
                 $login = $this->userConnection($login, $pwd);
@@ -141,7 +144,7 @@ class CoreconnectionController extends CorecookiesecureController
         $lang = $this->getLanguage();
         $_SESSION['flashClass'] = "danger";
         $_SESSION['flash'] = CoreTranslator::ConnectionError($lang, $connection_error);
-        return $this->redirect('/coreconnection?redirect_url='.$redirection);
+        return $this->redirect('/coreconnection?redirect_url='.urlencode(Utils::safeRedirectPath($redirection)));
     }
 
     /**
@@ -158,7 +161,7 @@ class CoreconnectionController extends CorecookiesecureController
         if (isset($_SESSION["user_settings"]["homepage"])) {
             $redirectController = $_SESSION["user_settings"]["homepage"];
         }
-        $redirectionForm = $this->request->getParameter('redirection');
+        $redirectionForm = Utils::safeRedirectPath($this->request->getParameter('redirection', false));
         if ($redirectionForm != "") {
             $redirectController = $redirectionForm;
         }
