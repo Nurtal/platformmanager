@@ -111,13 +111,13 @@ class CoreconnectionController extends CorecookiesecureController
 
             // generate the remember me cookie
             if ($this->request->isParameter("remember")) {
-                $key = hash('sha512', $this->generateRandomKey());
-                $cookieSet = setcookie("auth", $loggedUser['id'] . "-" . $key, time() + 3600 * 24 * 3);
-                if (!$cookieSet) {
-                    throw new PfmException("failed to set cookie with key " . $key, 500);
-                }
                 $modelUser = new CoreUser();
-                $modelUser->setRememberKey($loggedUser['id'], $key);
+                $token = $modelUser->issueRememberToken($loggedUser['id']);
+                $cookieSet = setcookie("auth", $loggedUser['id'] . "-" . $token, time() + 3600 * 24 * 3);
+                if (!$cookieSet) {
+                    // never put the token in the message: it travels to the logs and to Sentry
+                    throw new PfmException("failed to set the remember me cookie", 500);
+                }
             }
             if ($redirection) {
                 $this->redirect($redirection);
@@ -173,6 +173,12 @@ class CoreconnectionController extends CorecookiesecureController
      */
     public function logoutAction()
     {
+        $id_user = intval($this->request->getSession()->getAttribut("id_user"));
+        if ($id_user > 0) {
+            // the cookie going away is not enough: the token must stop working too
+            $modelUser = new CoreUser();
+            $modelUser->clearRememberToken($id_user);
+        }
         setcookie('auth', '', -1);
 
         $this->request->getSession()->destroy();

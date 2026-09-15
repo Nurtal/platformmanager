@@ -32,36 +32,49 @@ abstract class CoresecureController extends CorecookiesecureController
         if (!isset($_SESSION["id_user"])) {
             if (isset($_COOKIE['auth'])) {
                 $auth = $_COOKIE['auth'];
-                $authArray = explode('-', $auth);
+                $authArray = explode('-', $auth, 2);
+                if (count($authArray) != 2) {
+                    return $this->forgetRememberMeCookie();
+                }
                 $modelUser = new CoreUser();
                 if (!$modelUser->isUserId($authArray[0])) {
                     $this->redirect("coreconnection");
                     return 1;
                 }
 
-                $key = $modelUser->getRememberKey($authArray[0]);
-                if ($key == $authArray[1]) {
-                    // update the cookie
-                    $key = hash('sha512', $this->generateRandomKey());
-                    $cookieSet = setcookie("auth", $authArray[0] . "-" . $key, time() + 3600 * 24 * 3);
+                if ($modelUser->verifyRememberToken($authArray[0], $authArray[1])) {
+                    // rotate the token, so a cookie is only ever good once
+                    $token = $modelUser->issueRememberToken($authArray[0]);
+                    $cookieSet = setcookie("auth", $authArray[0] . "-" . $token, time() + 3600 * 24 * 3);
                     if (!$cookieSet) {
                         throw new PfmAuthException('cannot set the cookie in coresecure', 403);
                     }
-                    $modelUser->setRememberKey($authArray[0], $key);
 
                     $this->initSession($modelUser->getUserLogin($authArray[0]));
 
                     // redirect
                     return 2;
                 } else {
-                    setcookie('auth', '', time() - 3600);
-                    $this->redirectNoRemoveHeader("coreconnection");
-                    return 0;
+                    // a token that does not verify leaves no half-authenticated session
+                    // behind; the stored one is left alone, so guessing cookies cannot
+                    // sign other people out
+                    return $this->forgetRememberMeCookie();
                 }
             } else {
                 return 0;
             }
         }
+        return 0;
+    }
+
+    /**
+     * Drop the remember me cookie the browser sent and send the visitor to the
+     * login screen with nothing of the attempt left in the session.
+     */
+    private function forgetRememberMeCookie(): int
+    {
+        setcookie('auth', '', time() - 3600);
+        $this->redirectNoRemoveHeader("coreconnection");
         return 0;
     }
 
