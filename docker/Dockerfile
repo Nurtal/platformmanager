@@ -3,7 +3,7 @@ FROM php:8.3-apache
 LABEL author="GenOuest <support@genouest.org>" \
       description="Image for platform manager processes" \
       org.irisa.genouest.vendor="2021 IRISA" \
-      homepage="https://github.com/bgo-bioimagerie/platformmanager"
+      homepage="https://github.com/Nurtal/platformmanager"
 
 
 WORKDIR /var/www
@@ -65,10 +65,14 @@ ADD apache2/000-default.conf /etc/apache2/sites-enabled/000-default.conf
 RUN mkdir -p /var/www/platformmanager \
     && chown -R www-data /var/www/platformmanager
 
+# The sources are cloned at build time, not copied from the build context, so the
+# repository decides which code ships. It defaults to this fork, which carries the
+# security fixes; the upstream repository does not.
+ARG REPOSITORY=https://github.com/Nurtal/platformmanager.git
 ARG BRANCH=master
 
 # install Platform-Manager sources
-RUN git clone https://github.com/bgo-bioimagerie/platformmanager.git /tmp/platformmanager_git \
+RUN git clone "$REPOSITORY" /tmp/platformmanager_git \
   && cd /tmp/platformmanager_git \
   && git checkout $BRANCH \
   && cp -r /tmp/platformmanager_git/data /opt \
