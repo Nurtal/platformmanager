@@ -52,10 +52,9 @@ The full record, including severity and verification for each item, is in
 The supported route is Docker Compose. Installing from source on Apache is described in
 [doc/content/installation/source.md](doc/content/installation/source.md).
 
-> **Warning: build the image from this fork.** `docker/Dockerfile` clones the upstream repository
-> at build time, and the published `quay.io` images are built from upstream too. Neither contains
-> the application fixes listed above; only the web-server configuration is taken from this
-> checkout. Point the `git clone` line in `docker/Dockerfile` at this fork before building.
+> **Build the image from this fork.** The published `quay.io` images are built from upstream and
+> do not contain the fixes above. `docker/Dockerfile` clones this fork at build time; the
+> `REPOSITORY` and `BRANCH` build arguments select the repository and branch.
 
 ### 1. Prerequisites
 
@@ -93,6 +92,12 @@ All variables are documented in [doc/content/installation/docker.md](doc/content
 ```sh
 docker compose build
 docker compose up -d
+```
+
+The build clones `master` of this fork. To build another branch, for instance one not yet merged:
+
+```sh
+docker compose build --build-arg BRANCH=security-hardening
 ```
 
 The `./data` directory is mounted into the container. It holds uploaded files and must be
