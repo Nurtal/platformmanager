@@ -44,10 +44,10 @@ class RatingCampaign extends Model
     {
         $exists = $this->get($id_space, $id);
         if ($exists) {
-            $sql = 'UPDATE rating_campaign set from_date=?, to_date=?, limit_date=?, message=?, mails=? WHERE id_space=? AND id=?';
+            $sql = 'UPDATE rating_campaign set from_date=?, `to_date`=?, limit_date=?, message=?, mails=? WHERE id_space=? AND id=?';
             $this->runRequest($sql, [$from_date, $to_date, $limit_date, $message, $mails, $id_space, $id]);
         } else {
-            $sql = 'INSERT INTO rating_campaign (id_space, from_date, to_date, limit_date, message) VALUES (?, ?, ?, ?, ?)';
+            $sql = 'INSERT INTO rating_campaign (id_space, from_date, `to_date`, limit_date, message) VALUES (?, ?, ?, ?, ?)';
             $this->runRequest($sql, [$id_space, $from_date, $to_date, $limit_date, $message]);
             $id = $this->getDatabase()->lastInsertId();
         }
