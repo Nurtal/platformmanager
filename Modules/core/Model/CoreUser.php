@@ -282,18 +282,63 @@ class CoreUser extends Model
         return $usersToExpire;
     }
 
-    public function getRememberKey($id)
+    /**
+     * Issue a "remember me" token for a User.
+     *
+     * The token is 32 random bytes; only a hash of it is stored, so read access to
+     * the database is not enough to sign in as anyone. Issuing again invalidates
+     * whatever was issued before.
+     *
+     * @param int $id User id
+     * @return string the token to hand to the browser; it is never stored as such
+     */
+    public function issueRememberToken($id): string
     {
-        $sql = "SELECT remember_key FROM core_users WHERE id=?";
-        $req = $this->runRequest($sql, array($id));
-        $data = $req->fetch();
-        return $data[0];
+        $token = bin2hex(random_bytes(32));
+        $sql = "UPDATE core_users SET remember_key=? WHERE id=?";
+        $this->runRequest($sql, array($this->hashRememberToken($token), $id));
+        return $token;
     }
 
-    public function setRememberKey($id, $key)
+    /**
+     * Check a "remember me" token presented by a browser against the stored hash.
+     *
+     * @param int $id User id, as carried by the cookie
+     * @param string $token token, as carried by the cookie
+     * @return bool true when the token matches what was issued
+     */
+    public function verifyRememberToken($id, $token): bool
     {
-        $sql = "UPDATE core_users SET remember_key=? WHERE id=?";
-        $this->runRequest($sql, array($key, $id));
+        if (!is_string($token) || $token === '') {
+            return false;
+        }
+        $sql = "SELECT remember_key FROM core_users WHERE id=?";
+        $stored = $this->runRequest($sql, array($id))->fetch();
+        if (!$stored || !$stored['remember_key']) {
+            return false;
+        }
+        return hash_equals($stored['remember_key'], $this->hashRememberToken($token));
+    }
+
+    /**
+     * Drop the stored "remember me" token, so any cookie holding one stops working.
+     *
+     * @param int $id User id
+     */
+    public function clearRememberToken($id): void
+    {
+        $sql = "UPDATE core_users SET remember_key=NULL WHERE id=?";
+        $this->runRequest($sql, array($id));
+    }
+
+    /**
+     * A token carries 256 bits of entropy already, so a fast hash is enough here;
+     * what matters is that the stored form cannot be replayed and that comparison
+     * gives nothing away through timing.
+     */
+    private function hashRememberToken(string $token): string
+    {
+        return hash('sha256', $token);
     }
 
     public function getUserLogin($id)
@@ -555,14 +600,26 @@ class CoreUser extends Model
             throw new PfmAuthException($this::$CNX_INVALID_LOGIN);
         }
         $user = $res->fetch();
-        $hash = $user['hash'];
+        $hash = intval($user['hash']);
         $pwdDb = $user['pwd'];
         if (!$this->comparePasswords($pwd, $pwdDb, $hash)) {
-            Configuration::getLogger()->debug('[core][connect] invalid password', ['user' => $user]);
+            // never log the user row here: it carries the password hash
+            Configuration::getLogger()->debug('[core][connect] invalid password', ['login' => $login]);
             throw new PfmAuthException($this::$CNX_WRONG_PWD);
         }
+        if ($hash === self::$HASH_MD5) {
+            // The password is proven, so the account can leave MD5 behind without
+            // anyone being asked to reset anything. The debt extinguishes itself
+            // as Users sign in.
+            $this->changePwd($user['id'], $pwd);
+            Configuration::getLogger()->info('[core][connect] upgraded password hash to bcrypt', ['login' => $login]);
+        }
         if ($user["is_active"] != 1 || $user["validated"] != 1) {
-            Configuration::getLogger()->debug('[core][connect] inactive user', ['user' => $user]);
+            Configuration::getLogger()->debug('[core][connect] inactive user', [
+                'login' => $login,
+                'is_active' => $user['is_active'],
+                'validated' => $user['validated']
+            ]);
             throw new PfmAuthException($this::$CNX_INACTIVE);
         } else {
             return true;

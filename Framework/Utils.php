@@ -87,6 +87,45 @@ class Utils
     }
 
     /**
+     * Validate a destination the application will send a User to after signing in.
+     *
+     * Accepts an internal destination only: a relative path, optionally rooted at "/",
+     * keeping its query string. Anything a browser could resolve against another origin,
+     * and anything carrying markup or control characters, collapses to $default.
+     *
+     * @param mixed $path candidate destination, as received from the request
+     * @param string $default destination used when $path is refused
+     * @return string $path when it is an internal destination, $default otherwise
+     */
+    public static function safeRedirectPath(mixed $path, string $default = ''): string
+    {
+        if (!is_string($path) || trim($path) === '') {
+            return $default;
+        }
+        // Control characters and whitespace: header injection, and smuggling into an attribute
+        if (preg_match('/[\x00-\x20\x7f]/', $path)) {
+            return $default;
+        }
+        // Backslashes: browsers normalise "\\host" and "/\host" to a protocol-relative URL
+        if (str_contains($path, '\\')) {
+            return $default;
+        }
+        // An explicit scheme (http:, javascript:, data:...) leaves the application
+        if (preg_match('#^[a-z][a-z0-9+.-]*:#i', $path)) {
+            return $default;
+        }
+        // "//host" is protocol-relative, hence another origin
+        if (str_starts_with($path, '//')) {
+            return $default;
+        }
+        // Characters that would break out of the attribute the value is written into
+        if (preg_match('/["\'<>`]/', $path)) {
+            return $default;
+        }
+        return $path;
+    }
+
+    /**
      * SQL objects are returend as arrays with keys and indexes
      * Remove numeric indexes to keep only object params
      */

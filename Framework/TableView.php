@@ -365,7 +365,8 @@ class TableView
                         $tcolor = $dat[$this->colorIndexes["all_text"]];
                     }
 
-                    $val = $dat[$key];
+                    // a null column value is deprecated as a string argument since 8.1
+                    $val = $dat[$key] ?? '';
                     if (is_array($value)) {
                         if ($value["type"] == "image") {
                             if ($val != "") {
@@ -384,8 +385,8 @@ class TableView
                             $html .= '</td>';
                         }
                     } else {
-                        if (strlen($dat[$key]) && $this->textMaxLength > 0) {
-                            $val = substr($dat[$key], 0, $this->textMaxLength);
+                        if (strlen($val) && $this->textMaxLength > 0) {
+                            $val = substr($val, 0, $this->textMaxLength);
                         }
                         $html .= "<td style=\"background-color: $ccolor; color: $tcolor\"> " . htmlspecialchars($val, ENT_QUOTES, 'UTF-8', false) . "</td>";
                     }

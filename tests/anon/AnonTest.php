@@ -5,7 +5,7 @@ require_once 'tests/BaseTest.php';
 require_once 'Modules/core/Controller/CoreaboutController.php';
 require_once 'Modules/core/Controller/CorespaceController.php';
 
-class Anonest extends BaseTest {
+class AnonTest extends BaseTest {
 
     public function testAnonAccess(){
         $ctx = $this->Context();

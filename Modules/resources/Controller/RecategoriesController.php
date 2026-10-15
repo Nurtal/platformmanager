@@ -16,6 +16,9 @@ require_once 'Modules/resources/Controller/ResourcesBaseController.php';
  */
 class RecategoriesController extends ResourcesBaseController
 {
+    /** Declared because dynamic properties are removed in PHP 9 */
+    private $categoryModel;
+
     /**
      * Constructor
      */

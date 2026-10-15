@@ -5,6 +5,7 @@ require_once 'Framework/Configuration.php';
 require_once 'Framework/Form.php';
 require_once 'Framework/Email.php';
 require_once 'Framework/Errors.php';
+require_once 'Framework/Utils.php';
 
 require_once 'Modules/core/Controller/CorecookiesecureController.php';
 require_once 'Modules/core/Model/CoreUser.php';
@@ -57,11 +58,11 @@ class CoreconnectionController extends CorecookiesecureController
                 $nonce = uniqid("pfm");
                 $provider = [
                     "name" => $openid_provider,
-                    "url" => Configuration::get("openid_${openid_provider}_url"),
-                    "icon" => Configuration::get("openid_${openid_provider}_icon"),
-                    "login" => Configuration::get("openid_${openid_provider}_login"),
-                    "client_id" => Configuration::get("openid_${openid_provider}_client_id"),
-                    "client_secret" => Configuration::get("openid_${openid_provider}_client_secret"),
+                    "url" => Configuration::get("openid_{$openid_provider}_url"),
+                    "icon" => Configuration::get("openid_{$openid_provider}_icon"),
+                    "login" => Configuration::get("openid_{$openid_provider}_login"),
+                    "client_id" => Configuration::get("openid_{$openid_provider}_client_id"),
+                    "client_secret" => Configuration::get("openid_{$openid_provider}_client_secret"),
                     "callback" => Configuration::get("public_url")."/ooc/$openid_provider/authorized",
                     "nonce" => $nonce,
                 ];
@@ -70,8 +71,10 @@ class CoreconnectionController extends CorecookiesecureController
         }
         $_SESSION["redirect"] = "coretiles";
 
-        if (isset($_GET['redirect_url'])) {
-            $redirection = urldecode($_GET['redirect_url']);
+        // PHP already decoded the query string: decoding a second time here is what let a
+        // double-encoded payload through. Keep only an internal destination; the view escapes it.
+        if ($this->request->isParameter('redirect_url')) {
+            $redirection = Utils::safeRedirectPath($this->request->getParameter('redirect_url', false));
         }
 
 
@@ -97,7 +100,7 @@ class CoreconnectionController extends CorecookiesecureController
 
             $redirection = '';
             if ($this->request->isParameter('redirection')) {
-                $redirection = $this->request->getParameter('redirection');
+                $redirection = Utils::safeRedirectPath($this->request->getParameter('redirection', false));
             }
             try {
                 $login = $this->userConnection($login, $pwd);
@@ -108,13 +111,12 @@ class CoreconnectionController extends CorecookiesecureController
 
             // generate the remember me cookie
             if ($this->request->isParameter("remember")) {
-                $key = hash('sha512', $this->generateRandomKey());
-                $cookieSet = setcookie("auth", $loggedUser['id'] . "-" . $key, time() + 3600 * 24 * 3);
-                if (!$cookieSet) {
-                    throw new PfmException("failed to set cookie with key " . $key, 500);
-                }
                 $modelUser = new CoreUser();
-                $modelUser->setRememberKey($loggedUser['id'], $key);
+                $token = $modelUser->issueRememberToken($loggedUser['id']);
+                if (!$this->setRememberMeCookie($loggedUser['id'], $token)) {
+                    // never put the token in the message: it travels to the logs and to Sentry
+                    throw new PfmException("failed to set the remember me cookie", 500);
+                }
             }
             if ($redirection) {
                 $this->redirect($redirection);
@@ -141,7 +143,7 @@ class CoreconnectionController extends CorecookiesecureController
         $lang = $this->getLanguage();
         $_SESSION['flashClass'] = "danger";
         $_SESSION['flash'] = CoreTranslator::ConnectionError($lang, $connection_error);
-        return $this->redirect('/coreconnection?redirect_url='.$redirection);
+        return $this->redirect('/coreconnection?redirect_url='.urlencode(Utils::safeRedirectPath($redirection)));
     }
 
     /**
@@ -158,7 +160,7 @@ class CoreconnectionController extends CorecookiesecureController
         if (isset($_SESSION["user_settings"]["homepage"])) {
             $redirectController = $_SESSION["user_settings"]["homepage"];
         }
-        $redirectionForm = $this->request->getParameter('redirection');
+        $redirectionForm = Utils::safeRedirectPath($this->request->getParameter('redirection', false));
         if ($redirectionForm != "") {
             $redirectController = $redirectionForm;
         }
@@ -170,7 +172,13 @@ class CoreconnectionController extends CorecookiesecureController
      */
     public function logoutAction()
     {
-        setcookie('auth', '', -1);
+        $id_user = intval($this->request->getSession()->getAttribut("id_user"));
+        if ($id_user > 0) {
+            // the cookie going away is not enough: the token must stop working too
+            $modelUser = new CoreUser();
+            $modelUser->clearRememberToken($id_user);
+        }
+        $this->clearRememberMeCookie();
 
         $this->request->getSession()->destroy();
         $this->redirectNoRemoveHeader("coretiles");

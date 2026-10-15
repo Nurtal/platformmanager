@@ -7,6 +7,9 @@ require_once 'Modules/core/Model/CoreSpace.php';
 
 class ResourcesBaseController extends CoresecureController
 {
+    /** Model the subclass works on; declared because dynamic properties are removed in PHP 9 */
+    protected $model;
+
     public function sideMenu()
     {
         $id_space = $this->args['id_space'];
