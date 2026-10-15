@@ -56,6 +56,24 @@ The supported route is Docker Compose. Installing from source on Apache is descr
 > do not contain the fixes above. `docker/Dockerfile` clones this fork at build time; the
 > `REPOSITORY` and `BRANCH` build arguments select the repository and branch.
 
+### Quick start
+
+`bin/pfm.sh` runs every step below in one go:
+
+```sh
+bin/pfm.sh            # build, start, install the database, check the deployment
+bin/pfm.sh stop       # stop the stack, data is kept
+bin/pfm.sh status     # list the services
+bin/pfm.sh logs       # follow the application logs
+bin/pfm.sh check      # rerun the deployment check
+```
+
+Its configuration is `docker/.env`. If that file does not exist, the first run creates it from
+`env.example` with random secrets and prints the administrator password once. The script refuses
+to start while any secret still has its `env.example` value. `PFM_BRANCH` in `docker/.env`
+selects the branch to build from (default `master`), and `PFM_SKIP_BUILD=1` reuses the existing
+image. It serves on `http://localhost:3000`; for production, still go through steps 2 and 5.
+
 ### 1. Prerequisites
 
 Docker with the Compose plugin. The stack runs Platform-Manager, MySQL, RabbitMQ, Redis,
