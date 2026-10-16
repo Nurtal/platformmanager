@@ -5,7 +5,10 @@ using an external mysql database
 
 ## Building
 
-Specify to docker the build arg BRANCH (defaults to master)
+The sources are cloned at build time. Two build args select them:
+
+* REPOSITORY: git URL to clone (defaults to https://github.com/Nurtal/platformmanager.git)
+* BRANCH: branch or tag to check out (defaults to master)
 
    docker build --build-arg BRANCH=master ...
 
